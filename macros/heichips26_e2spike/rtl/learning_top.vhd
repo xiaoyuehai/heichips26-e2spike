@@ -33,7 +33,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 entity learning_top is
     generic(
-        w_WIDTH     : integer := 3
+        w_WIDTH     : integer := 4
     );
     port(
         clk         : in std_logic;
