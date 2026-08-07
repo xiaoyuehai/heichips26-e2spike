@@ -33,11 +33,12 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity ca_counter is
     port (
-        clk        : in  std_logic;
-        rst        : in  std_logic;
-        spk_post   : in  std_logic;
-        leak_event : in  std_logic;
-        ca         : out std_logic_vector(2 downto 0) -- Width need to be optimized as configurable generic values
+        clk             : in  std_logic;
+        rst             : in  std_logic;
+        sample_start    : in  std_logic;
+        spk_post        : in  std_logic;
+        leak_event      : in  std_logic;
+        ca              : out std_logic_vector(2 downto 0) -- Width need to be optimized as configurable generic values
     );
 end entity ca_counter;
 
@@ -59,24 +60,31 @@ begin
             ca_reg <= CA_MIN;
 
         elsif rising_edge(clk) then
+        
+            -- Clear calcium variable at the end of each sample
+            if sample_start = '1' then
+                ca_reg <= CA_MIN;
+                
+            else
+                case event_sel is
+    
+                    when "10" =>
+                        if ca_reg < CA_MAX then
+                            ca_reg <= ca_reg + 1;
+                        end if;
+    
+                    when "01" =>
+                        if ca_reg > CA_MIN then
+                            ca_reg <= ca_reg - 1;
+                        end if;
+    
+                    when others =>
+                        null;
+    
+                end case;
 
-            case event_sel is
-
-                when "10" =>
-                    if ca_reg < CA_MAX then
-                        ca_reg <= ca_reg + 1;
-                    end if;
-
-                when "01" =>
-                    if ca_reg > CA_MIN then
-                        ca_reg <= ca_reg - 1;
-                    end if;
-
-                when others =>
-                    null;
-
-            end case;
-
+            end if;
+            
         end if;
     end process;
 

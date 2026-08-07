@@ -38,6 +38,7 @@ entity learning_top is
     port(
         clk         : in std_logic;
         rst         : in std_logic;
+        sample_start: in std_logic;
         learn_en    : in std_logic;
         Vmem        : in std_logic_vector(15 downto 0);
         spk_post    : in std_logic;
@@ -51,11 +52,12 @@ architecture Structural of learning_top is
 
     component ca_counter is
         port (
-            clk         : in  std_logic;
-            rst         : in  std_logic;
-            spk_post    : in  std_logic;
-            leak_event  : in  std_logic;
-            ca          : out std_logic_vector(2 downto 0)
+            clk             : in  std_logic;
+            rst             : in  std_logic;
+            sample_start    : in  std_logic;
+            spk_post        : in  std_logic;
+            leak_event      : in  std_logic;
+            ca              : out std_logic_vector(2 downto 0)
         );  
     end component;
     
@@ -96,11 +98,12 @@ begin
 
     inst_ca_counter : ca_counter
         port map (
-            clk         => clk,
-            rst         => rst,
-            spk_post    => spk_post,
-            leak_event  => '0', -- Ca counter leakage disabled
-            ca          => ca
+            clk             => clk,
+            rst             => rst,
+            sample_start    => sample_start,
+            spk_post        => spk_post,
+            leak_event      => '0', -- Ca counter leakage disabled
+            ca              => ca
         );
         
     inst_comparator : comparator
