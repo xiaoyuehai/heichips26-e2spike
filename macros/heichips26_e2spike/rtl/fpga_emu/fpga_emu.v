@@ -65,6 +65,10 @@ module FPGA_EMU(
     assign gbl_finish = uio_out[12];
     assign class_label = uio_out[13];
 
+    //in
+    assign uio_in[0] = gbl_start;
+    assign uio_in[1] = online_training_disable;
+
     assign sram_w_data = uo_out;
     assign ui_in = sram_r_data;
     /// UART
