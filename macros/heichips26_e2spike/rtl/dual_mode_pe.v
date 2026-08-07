@@ -144,17 +144,28 @@ module DUAL_MODE_PE (
         if(spike_en) v_learn <= res;
     end
 
-    SDSP U_SDSP(
+    // SDSP U_SDSP(
+    //     .clk(clk),
+    //     .rst_n(rst_n),
+    //     .sample_start(gbl_start),
+    //     .post_spike(spike_en_ff && (|spike_out) && final_cls_layer),
+    //     .learn_en(~online_training_disable && final_cls_layer),
+    //     .pre_spike(|act_0 && inter_acc_en),
+    //     .mem_p(v_learn),
+    //     .mem_w(in_w_0),
+    //     .updated_weight(updated_weight)//,
+    //     // .updated_weight_we(updated_weight_we)
+    // );
+    learning_top U_LEARNING_TOP(
         .clk(clk),
-        .rst_n(rst_n),
+        .rst(~rst_n),
         .sample_start(gbl_start),
-        .post_spike(spike_en_ff && (|spike_out) && final_cls_layer),
         .learn_en(~online_training_disable && final_cls_layer),
-        .pre_spike(|act_0 && inter_acc_en),
-        .mem_p(v_learn),
-        .mem_w(in_w_0),
-        .updated_weight(updated_weight)//,
-        // .updated_weight_we(updated_weight_we)
+        .Vmem(v_learn),
+        .spk_post(spike_en_ff && (|spike_out) && final_cls_layer),
+        .spk_pre(|act_0 && inter_acc_en),
+        .w(in_w_0),
+        .w_next(updated_weight)
     );
 
 endmodule

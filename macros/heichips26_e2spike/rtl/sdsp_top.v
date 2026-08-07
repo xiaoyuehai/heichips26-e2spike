@@ -8,7 +8,8 @@ module sdsp_top #(
     input  wire [w_WIDTH-1:0] w,
     output wire [w_WIDTH-1:0] w_next,
     input  wire               clk,
-    input  wire               rst
+    input  wire               rst,
+    input  wire               learn_en
 );
 
     wire               cin;
@@ -61,6 +62,7 @@ module sdsp_top #(
     ) u5_d_ff (
         .clk (clk),
         .rst (rst),
+        .learn_en(learn_en),
         .d   (w_new),
         .q   (w_next)
     );

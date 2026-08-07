@@ -9,13 +9,13 @@ module learning_top #(
     input  wire               spk_post,
     input  wire               spk_pre,
     input  wire [w_WIDTH-1:0] w,
-    output reg  [w_WIDTH-1:0] w_next
+    output wire [w_WIDTH-1:0] w_next
 );
 
     wire [2:0]         ca;
     wire               up;
     wire               down;
-    wire [w_WIDTH-1:0] w_new;
+    // wire [w_WIDTH-1:0] w_new;
 
     ca_counter inst_ca_counter (
         .clk          (clk),
@@ -30,7 +30,8 @@ module learning_top #(
         .ca   (ca),
         .Vmem (Vmem),
         .up   (up),
-        .down (down)
+        .down (down),
+        .spike_pre(spk_pre)
     );
 
     sdsp_top #(
@@ -41,20 +42,21 @@ module learning_top #(
         .spk_pre (spk_pre),
         .bist    (1'b0),
         .w       (w),
-        .w_next  (w_new),
+        .w_next  (w_next),
         .clk     (clk),
-        .rst     (rst)
+        .rst     (rst),
+        .learn_en(learn_en)
     );
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            w_next <= w;
-        end else if (spk_pre) begin
-            if (learn_en)
-                w_next <= w_new;
-            else
-                w_next <= w;
-        end
-    end
+    // always @(posedge clk or posedge rst) begin
+    //     if (rst) begin
+    //         w_next <= w;
+    //     end else if (spk_pre) begin
+    //         if (learn_en)
+    //             w_next <= w_new;
+    //         else
+    //             w_next <= w;
+    //     end
+    // end
 
 endmodule
