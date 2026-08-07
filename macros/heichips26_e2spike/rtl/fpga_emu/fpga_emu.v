@@ -41,19 +41,33 @@ module FPGA_EMU(
     wire        sram_wen;
     wire [63:0] sram_w_data;
 
-    micro_brain_top U_MICRO_BRAIN (
-        .clk         (clk),
-        .rst_n       (sys_rst_n),
-        .gbl_start   (gbl_start),
-        .gbl_finish  (gbl_finish),
-        .class_label (class_label),
+    wire [15:0] ui_in;    // Dedicated inputs
+    wire [15:0] uo_out;   // Dedicated outputs
+    wire [15:0] uio_out;  // IOs: Output path
+    wire [15:0] uio_in;   // IOs: Input path
+    wire [15:0] uio_oe;   // IOs: Enable path (active high: 0=input, 1=output)
+    wire       ena;      // always 1 when the design is powered, so you can ignore it
 
-        .sram_addr   (sram_addr),
-        .sram_ren    (sram_ren),
-        .sram_r_data (sram_r_data),
-        .sram_wen    (sram_wen),
-        .sram_w_data (sram_w_data)
+    heichips26_e2spike U_HEICHIPS26_E2SPIKE(
+        .clk      (clk),
+        .rst_n    (rst_n),
+        .ena      (ena),
+        .ui_in    (ui_in),
+        .uo_out   (uo_out),
+        .uio_out  (uio_out),
+        .uio_in   (uio_in),
+        .uio_oe   (uio_oe)
     );
+
+    assign sram_addr = uio_out[9:0];
+    assign sram_ren = uio_out[10];
+    assign sram_wen = uio_out[11];
+    assign gbl_finish = uio_out[12];
+    assign class_label = uio_out[13];
+
+    assign sram_w_data = uo_out;
+    assign ui_in = sram_r_data;
+    /// UART
 
     mem_ctrl U_MEM_CTRL(
         .clk      (clk),
@@ -63,28 +77,6 @@ module FPGA_EMU(
         .addr     (sram_addr),
         .din      (sram_w_data),
         .dout     (sram_r_data)
-    );
-
-    // bank A: low 32 bits, bank B: high 32 bits, shared address
-    // BRAM enable must be high for both read and write accesses
-    wire bank_en = sram_ren | sram_wen;
-
-    BANKA_MEM U_BANKA_MEM (
-        .clka  (clk),
-        .ena   (bank_en),
-        .wea   (sram_wen),
-        .addra (sram_addr),
-        .dina  (sram_w_data[31:0]),
-        .douta (sram_r_data[31:0])
-    );
-
-    BANKB_MEM U_BANKB_MEM (
-        .clka  (clk),
-        .ena   (bank_en),
-        .wea   (sram_wen),
-        .addra (sram_addr),
-        .dina  (sram_w_data[63:32]),
-        .douta (sram_r_data[63:32])
     );
 
 endmodule
