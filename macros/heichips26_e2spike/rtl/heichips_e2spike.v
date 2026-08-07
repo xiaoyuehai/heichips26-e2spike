@@ -23,6 +23,7 @@ module heichips26_e2spike (
     wire gbl_start;
     wire gbl_finish;
     wire class_label;
+    wire online_training_disable;
     wire [9:0] sram_addr;
     wire sram_ren;
     wire [15:0] sram_r_data;
@@ -35,6 +36,7 @@ module heichips26_e2spike (
         .gbl_start   (gbl_start),
         .gbl_finish  (gbl_finish),
         .class_label (class_label),
+        .online_training_disable (online_training_disable),
         .sram_addr   (sram_addr),
         .sram_ren    (sram_ren),
         .sram_r_data (sram_r_data),
@@ -58,9 +60,10 @@ module heichips26_e2spike (
     assign uio_out[15] = 1'b0;
 
     assign gbl_start = uio_in[0];
+    assign online_training_disable = uio_in[1];
 
     assign uio_oe = 16'h0000;
-    wire _unused = &{uio_in[15:1], ena};
+    wire _unused = &{uio_in[15:2], ena};
 
 
 
