@@ -1,29 +1,34 @@
 # This the configuration file for your submission.
 # Please edit the fields below to match your project.
 
-project-name: Cool Project
-top-cell: "heichips26_digital_project" # Must be a unique name
+project-name: E2Spike
+top-cell: "heichips26_e2spike" # Must be a unique name
 team-members:
-- Firstname Lastname
-- Firstname Lastname
-- Firstname Lastname
-slot-size: small # small, large, tiny
+- Yuehai Chen
+- Frank de Weers
+- Shuzhong Wang
+- Yike Jing
+- Sebastian Kallfelz
+slot-size: large # small, large, tiny
 analog-pins: 0 # 0-3, only for small or tiny projects
-short-description: This is a super cool project!
+short-description: #This is a super cool project!
+This project develops a compact edge AI accelerator for end-to-end spiking neural network 
+inference and on-chip learning, supporting operators such as depthwise convolution, 
+pointwise convolution, and fully connected layers. It also explores SDSP-based lifelong 
+learning and always-on applications such as seizure and fall detection.
 # Please add the documentation about your project here.
 # Why did you choose to create it? How does it work? How can it be tested, etc.?
 # If your project requires additional external hardware, e.g. a USB port,
 # please mention this so we can consider it when designing the HeiChips PCB.
 long-description: |
-  Is this thing on?
+This project is awarded as this year's HeiChips Best project (digital), E2Spike can support
+end-to-end execution based on Spiking Neural Networks, currently can run 12-layer lightweight
+model for some edge computing, combining with SDSP-based on-chip learning. Here are some conclusion,
+ * End-to-End SNN models inference;
+ * Support 5 operators, including DW/PW convolution, Max/Average pooling, and fully connected;
+ * Verified on EEG-based seizure detection and DVS-based fall detection.
   
-  This is a super cool project 👏
-  
-  * with
-  * bullet
-  * points
-  
-  **nice** *formatting* and [links](https://heichips.github.io/).
+Here is the open-source repostiroy [links](https://github.com/xiaoyuehai/heichips26-e2spike).
 
 # These paths are used to verify your
 # submission during the precheck.
