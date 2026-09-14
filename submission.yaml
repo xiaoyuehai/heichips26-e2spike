@@ -1,27 +1,34 @@
-# This the configuration file for your submission.
+# This is the configuration file for your submission.
 # Please edit the fields below to match your project.
 
 project-name: E2Spike
+
 top-cell: "heichips26_e2spike" # Must be a unique name
+
 team-members:
-- Yuehai Chen
-- Frank de Weers
-- Shuzhong Wang
-- Yike Jing
-- Sebastian Kallfelz
+  - Yuehai Chen
+  - Frank de Weers
+  - Shuzhong Wang
+  - Yike Jing
+  - Sebastian Kallfelz
+
 slot-size: large # small, large, tiny
+
 analog-pins: 0 # 0-3, only for small or tiny projects
-short-description: #This is a super cool project!
-This project develops a compact edge AI accelerator for end-to-end spiking neural network 
-inference and on-chip learning, supporting operators such as depthwise convolution, 
-pointwise convolution, and fully connected layers. It also explores SDSP-based lifelong 
-learning and always-on applications such as seizure and fall detection.
+
+short-description: >
+  This project develops a compact edge AI accelerator for end-to-end spiking neural network
+  inference and on-chip learning, supporting operators such as depthwise convolution,
+  pointwise convolution, and fully connected layers. It also explores SDSP-based lifelong
+  learning and always-on applications such as seizure detection and fall detection.
+
 # Please add the documentation about your project here.
 # Why did you choose to create it? How does it work? How can it be tested, etc.?
 # If your project requires additional external hardware, e.g. a USB port,
 # please mention this so we can consider it when designing the HeiChips PCB.
+
 long-description: |
-E2Spike was awarded the HeiChips Best Project (Digital) this year. It is a compact
+  E2Spike was awarded the HeiChips Best Project (Digital) this year. It is a compact
   neuromorphic accelerator supporting end-to-end Spiking Neural Network (SNN) inference
   and SDSP-based on-chip learning. The current implementation can execute a 12-layer
   lightweight SNN for edge applications.
@@ -40,6 +47,7 @@ E2Spike was awarded the HeiChips Best Project (Digital) this year. It is a compa
 # submission during the precheck.
 # Wildcards are allowed, but there
 # should only be a single match.
+
 gds-path: macros/heichips26_e2spike/final/gds/*.gds
 lef-path: macros/heichips26_e2spike/final/lef/*.lef
 header-path: macros/heichips26_e2spike/final/vh/*.vh
