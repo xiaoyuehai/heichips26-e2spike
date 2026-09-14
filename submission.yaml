@@ -21,19 +21,25 @@ learning and always-on applications such as seizure and fall detection.
 # If your project requires additional external hardware, e.g. a USB port,
 # please mention this so we can consider it when designing the HeiChips PCB.
 long-description: |
-This project is awarded as this year's HeiChips Best project (digital), E2Spike can support
-end-to-end execution based on Spiking Neural Networks, currently can run 12-layer lightweight
-model for some edge computing, combining with SDSP-based on-chip learning. Here are some conclusion,
- * End-to-End SNN models inference;
- * Support 5 operators, including DW/PW convolution, Max/Average pooling, and fully connected;
- * Verified on EEG-based seizure detection and DVS-based fall detection.
-  
-Here is the open-source repostiroy [links](https://github.com/xiaoyuehai/heichips26-e2spike).
+E2Spike was awarded the HeiChips Best Project (Digital) this year. It is a compact
+  neuromorphic accelerator supporting end-to-end Spiking Neural Network (SNN) inference
+  and SDSP-based on-chip learning. The current implementation can execute a 12-layer
+  lightweight SNN for edge applications.
+
+  Key features include:
+
+  * End-to-end execution of SNN models;
+  * Support for five operators: depthwise convolution, pointwise convolution,
+    max pooling, average pooling, and fully connected operations;
+  * Validation on EEG-based seizure detection and DVS-based fall detection.
+
+  The project is open source and available on
+  [GitHub](https://github.com/xiaoyuehai/heichips26-e2spike).
 
 # These paths are used to verify your
 # submission during the precheck.
 # Wildcards are allowed, but there
 # should only be a single match.
-gds-path: macros/heichips26_digital_project/final/gds/*.gds
-lef-path: macros/heichips26_digital_project/final/lef/*.lef
-header-path: macros/heichips26_digital_project/final/vh/*.vh
+gds-path: macros/heichips26_e2spike/final/gds/*.gds
+lef-path: macros/heichips26_e2spike/final/lef/*.lef
+header-path: macros/heichips26_e2spike/final/vh/*.vh

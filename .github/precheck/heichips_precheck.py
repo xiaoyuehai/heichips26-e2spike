@@ -318,21 +318,18 @@ def power_pin_check(verilog: str, lef: str, uses_vapwr: bool):
     for match in PIN_PATTERN.finditer(lef_s):
         pin, definition = match.groups()
 
-        match pin:
-            case "VPWR" | "VDPWR" | "VAPWR":
-                if "USE POWER" not in definition:
-                    raise FlowError(
-                        f"{pin} does not have a corresponding 'USE POWER ;'"
-                    )
-
-            case "VGND":
-                if "USE GROUND" not in definition:
-                    raise FlowError(
-                        f"{pin} does not have a corresponding 'USE GROUND ;'"
-                    )
-
-            case _:
-                raise FlowError(f"unhandled {pin}")
+        if pin in {"VPWR", "VDPWR", "VAPWR"}:
+            if "USE POWER" not in definition:
+                raise FlowError(
+                    f"{pin} does not have a corresponding 'USE POWER ;'"
+                )
+        elif pin == "VGND":
+            if "USE GROUND" not in definition:
+                raise FlowError(
+                    f"{pin} does not have a corresponding 'USE GROUND ;'"
+                )
+        else:
+            raise FlowError(f"unhandled {pin}")
 
 
 class PrecheckFlow(SequentialFlow):
