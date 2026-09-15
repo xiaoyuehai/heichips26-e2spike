@@ -1,0 +1,13 @@
+Static timing analysis of the committed views
+netlist final/nl/heichips26_e2spike.nl.v, parasitics final/spef/nom/heichips26_e2spike.nom.spef,
+constraints flow/librelane/signoff.sdc (CLOCK_PERIOD 10 ns), LibreLane OpenROAD.STAPostPNR
+
+corner                  setup ws/ns  setup tns  setup vio   hold ws/ns   hold vio   slew vio    cap vio   min T/ns   fmax/MHz
+----------------------------------------------------------------------------------------------------------------------------
+nom_fast_1p32V_m40C           4.084      0.000          0        0.270          0          0          0       4.98      200.9
+nom_slow_1p08V_125C          -2.208   -110.066        125        0.792          0         13          0      12.21       81.9
+nom_typ_1p20V_25C             2.142      0.000          0        0.457          0          0          0       7.54      132.6
+
+Max fanout is exceeded by the clock tree buffers and by: _07290_/Y, fanout705/X, fanout725/X
+Drivers without parasitics: only the unused inputs (ena, uio_in[15:2]) and CTS dummy loads.
+All three corners close timing for clock periods of 12.21 ns (82 MHz) and above.
