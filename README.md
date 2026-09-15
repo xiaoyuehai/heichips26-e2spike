@@ -14,12 +14,16 @@ E2Spike is a compact neuromorphic accelerator developed during the **HeiChips 20
 
 ## Repository
 
-The main design is located in [`macros/heichips26_e2spike/`](macros/heichips26_e2spike/):
+The main design is located in [`macros/heichips26_e2spike/`](macros/heichips26_e2spike/). Its [README](macros/heichips26_e2spike/README.md) documents the pins, the SRAM protocol, the memory image and how to run an inference.
 
 - [`rtl/`](macros/heichips26_e2spike/rtl/): accelerator RTL and learning modules.
 - [`rtl/tb/`](macros/heichips26_e2spike/rtl/tb/): accelerator testbenches.
+- [`rtl/fpga_emu/`](macros/heichips26_e2spike/rtl/fpga_emu/): FPGA emulation on a Basys 3.
+- [`interface/`](macros/heichips26_e2spike/interface/): SRAM image with the weights and one input sample.
+- [`testbenches/verilog/`](macros/heichips26_e2spike/testbenches/verilog/): self-checking testbench at the macro pins, for RTL and gate-level simulation.
 - [`flow/`](macros/heichips26_e2spike/flow/): ASIC implementation configuration.
-- [`fpga/`](macros/heichips26_e2spike/fpga/): FPGA emulation infrastructure.
+- [`final/`](macros/heichips26_e2spike/final/): the submitted layout views.
+- [`verification/`](macros/heichips26_e2spike/verification/): signoff of the submitted views.
 
 ## Team
 

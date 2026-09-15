@@ -1,0 +1,4 @@
+pdk,revision,zero_area_polygons,klayout_antenna,magic_drc,klayout_drc
+submission pin,db70c13 2026-08-01 + 11d3fee 2026-08-02,0,0,0,0
+tapeout repo pin,22f2a25 2026-06-19 + e8a87d7 2026-06-16,0,0,0,0
+template pin since 2026-09-14,1ffc783 2026-09-09,0,0,0,0
