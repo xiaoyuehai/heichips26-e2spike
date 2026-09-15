@@ -1,438 +1,244 @@
-# HeiChips26 Digital Project (ihp-sg13cmos5l)
+# heichips26_e2spike (ihp-sg13cmos5l)
 
 <p align="center">
-  <a href="final/render/heichips26_digital_project.png">
-    <img src="final/render/heichips26_digital_project.png" alt="Render of the ihp-sg13cmos5l heichips26_digital_project layout" width=50%>
+  <a href="final/render/heichips26_e2spike.png">
+    <img src="final/render/heichips26_e2spike.png" alt="Render of the heichips26_e2spike layout" width=50%>
   </a>
   <br>
-  <em>Render of the ihp-sg13cmos5l heichips26_digital_project layout.</em>
+  <em>Layout of heichips26_e2spike, 500 µm × 415 µm, large HeiChips slot.</em>
 </p>
 
-This is the digital-on-top example project for the HeiChips 2026 Hackathon. The top-level `heichips26_digital_project` implements the standard chip interface (`ui_in`, `uo_out`, `uio_*`, `ena`, `clk`, `rst_n`) and embeds one hardened sub-macro, the 8-bit up [`counter`](macros/counter/README.md).
+This macro is the E2Spike accelerator for the HeiChips 2026 chip. It holds the layer
+controller, the processing elements and the SDSP learning rule. It has no memory of
+its own: the input sample, the weights, the layer configuration and the membrane
+potentials all live in the 1024 × 32 SRAM that the HeiChips eFPGA offers to its
+bitstream, and the macro reaches that SRAM through its pins.
+
+The layer sequence is fixed in the RTL: three depthwise separable blocks (ds1 to
+ds3, each a depthwise convolution, a pointwise convolution and pooling) followed by
+two fully connected layers (fc1, fc2), with multi-level LIF spikes over four time
+steps. Where each layer finds its parameters and how many channels and positions it
+has comes from a table in the SRAM image. With learning enabled, the SDSP rule
+updates the fc2 weights in the SRAM.
+
+The views in `final/` are what `submission.yaml` points at. Their signoff is in
+[`verification/`](verification/README.md).
 
 
-## Directory Structure
+## Pins
 
-<details>
-<summary>Show Directory Structure</summary>
+| Pin | Dir | Function |
+|---|---|---|
+| `clk` | in | clock |
+| `rst_n` | in | reset, active low, asynchronous |
+| `ui_in[15:0]` | in | SRAM read data, one 16-bit beat per cycle |
+| `uo_out[15:0]` | out | SRAM write data, one 16-bit beat per cycle |
+| `uio_out[9:0]` | out | SRAM logical address; bit 9 is always 0 |
+| `uio_out[10]` | out | read request (REN), one-cycle pulse |
+| `uio_out[11]` | out | write request (WEN), one-cycle pulse |
+| `uio_out[12]` | out | `gbl_finish`, one-cycle pulse at the end of an inference |
+| `uio_out[13]` | out | `class_label`, valid in the `gbl_finish` cycle |
+| `uio_out[15:14]` | out | 0 |
+| `uio_in[0]` | in | `gbl_start`, a one-cycle pulse starts an inference |
+| `uio_in[1]` | in | `online_training_disable`: 1 inference only, 0 SDSP learning on |
+| `uio_in[15:2]`, `ena` | in | unused |
+| `uio_oe[15:0]` | out | tied to 0 |
 
-```text
-📁 heichips26_digital_project/
-├─ 📁 final/
-│  ├─ 📁 gds/
-│  │  └─ heichips26_digital_project.gds
-│  ├─ 📁 lef/
-│  │  └─ heichips26_digital_project.lef
-│  ├─ 📁 lib/
-│  │  ├─ 📁 nom_fast_1p32V_m40C/
-│  │  ├─ 📁 nom_slow_1p08V_125C/
-│  │  └─ 📁 nom_typ_1p20V_25C/
-│  ├─ 📁 nl/
-│  │  └─ heichips26_digital_project.nl.v
-│  ├─ 📁 pnl/
-│  │  └─ heichips26_digital_project.pnl.v
-│  ├─ 📁 render/
-│  │  └─ heichips26_digital_project.png
-│  ├─ 📁 spef/
-│  │  └─ 📁 nom/
-│  └─ 📁 vh/
-│     └─ heichips26_digital_project.vh
-├─ 📁 flow/
-│  ├─ 📁 final/               # .gitignore'd — important files are copied to heichips26_digital_project/final/ (listed here to document LibreLane output folders)
-│  │  ├─ 📁 def/              # Design Exchange Format — cell placement & routing (text-based)
-│  │  ├─ 📁 gds/              # GDSII layout — final tape-out file
-│  │  ├─ 📁 json_h/           # Yosys JSON headers — machine-readable netlist for internal scripts
-│  │  ├─ 📁 klayout_gds/      # KLayout GDS — with extra visual-debug metadata
-│  │  ├─ 📁 lef/              # Library Exchange Format — abstract pin & blockage view for P&R
-│  │  ├─ 📁 lib/              # Liberty timing files — timing, power & area models
-│  │  ├─ 📁 mag/              # Magic layout files — used for DRC & GDS generation
-│  │  ├─ 📁 mag_gds/          # GDS generated/processed by Magic
-│  │  ├─ 📁 nl/               # Netlist — gate-level Verilog after synthesis
-│  │  ├─ 📁 odb/              # OpenDB — internal OpenROAD binary database (LEF+DEF combined)
-│  │  ├─ 📁 pnl/              # Powered Netlist — gate-level Verilog with explicit power pins (for LVS)
-│  │  ├─ 📁 render/           # Layout render images
-│  │  ├─ 📁 sdc/              # Synopsys Design Constraints — clock periods & timing requirements
-│  │  ├─ 📁 sdf/              # Standard Delay Format — timing delays for gate-level simulation
-│  │  ├─ 📁 spef/             # Standard Parasitic Exchange Format — RC parasitics from layout
-│  │  ├─ 📁 spice/            # SPICE netlist — for LVS & transistor-level simulation
-│  │  ├─ 📁 vh/               # Verilog headers — for hierarchy management & simulation inclusion
-│  │  ├─ metrics.csv          # Design metrics (area, power, timing slack, DRC/LVS) — spreadsheet
-│  │  └─ metrics.json         # Design metrics (area, power, timing slack, DRC/LVS) — JSON summary
-│  └─ 📁 librelane/
-│     ├─ config.yaml
-│     ├─ heichips26_template_large.def
-│     ├─ heichips26_template_small.def
-│     ├─ heichips26_template_small_analog.def
-│     ├─ heichips26_template_tiny.def
-│     ├─ heichips26_template_tiny_analog.def
-│     ├─ impl.sdc
-│     └─ signoff.sdc
-├─ 📁 fpga/
-│  ├─ 📁 arch/
-│  │  ├─ ecp5.mk
-│  │  ├─ gowin.mk
-│  │  ├─ ice40.mk
-│  │  └─ xilinx7.mk
-│  ├─ 📁 boards/
-│  │  ├─ basys3.mk
-│  │  ├─ boolean.mk
-│  │  ├─ icebreaker.mk
-│  │  ├─ nano9k.mk
-│  │  ├─ pico-ice.mk
-│  │  └─ ulx3s.mk
-│  ├─ 📁 design/
-│  │  ├─ 📁 basys3/
-│  │  ├─ 📁 boolean/
-│  │  ├─ 📁 icebreaker/
-│  │  ├─ 📁 nano9k/
-│  │  ├─ 📁 pico-ice/
-│  │  └─ 📁 ulx3s/
-│  ├─ dut.mk
-│  ├─ fpga.mk
-│  ├─ Makefile
-│  └─ README.md
-├─ 📁 macros/
-│  └─ 📁 counter/
-├─ 📁 netlist/
-│  ├─ 📁 nl/
-│  │  └─ heichips26_digital_project.nl.v
-│  ├─ 📁 pnl/
-│  │  └─ heichips26_digital_project.pnl.v
-│  └─ 📁 spice/
-│     └─ heichips26_digital_project.spice
-├─ 📁 rtl/
-│  └─ heichips26_digital_project.sv
-├─ 📁 testbenches/
-│  ├─ 📁 cocotb/
-│  │  ├─ heichips26_digital_project_tb.gtkw
-│  │  └─ heichips26_digital_project_tb.py
-│  └─ 📁 verilog/
-│     ├─ heichips26_digital_project_tb.gtkw
-│     └─ heichips26_digital_project_tb.sv
-├─ 📁 verification/
-│  ├─ antenna_summary.rpt
-│  ├─ antenna_violations.rpt
-│  ├─ stapostpnr_summary.rpt
-│  ├─ stapostpnr_nom_fast_1p32V_m40C_power.rpt
-│  ├─ stapostpnr_nom_slow_1p08V_125C_power.rpt
-│  ├─ stapostpnr_nom_typ_1p20V_25C_power.rpt
-│  ├─ irdrop.rpt
-│  ├─ drc.magic.rpt
-│  ├─ drc.klayout.json
-│  ├─ lvs.netgen.rpt
-│  ├─ manufacturability.rpt
-│  ├─ stat.rpt
-│  ├─ yosys_post_dff.rpt
-│  ├─ yosys_pre_techmap.rpt
-│  └─ yosys_synth_check.rpt
-├─ Makefile
-└─ README.md
-```
-
-</details>
+`uio_oe` is 0 on every bit even though `uio_out[13:0]` carries signals. The eFPGA
+gets `uio_out` and `uio_oe` as separate signals, so the bitstream has to use
+`uio_out` without gating it by `uio_oe`.
 
 
-## Sub-Macros
+## SRAM interface
 
-The `counter` is hardened as an own macro in [`macros/counter/`](macros/counter/) and integrated as a black box via the `MACROS` section in [`flow/librelane/config.yaml`](flow/librelane/config.yaml) (GDS, LEF, VH, LIB, SPEF views from `macros/counter/final/`).
+The macro addresses a logical memory of 512 words of 64 bits. The memory controller
+between macro and SRAM maps logical word `a` onto two physical words,
+`{phys[a + 512], phys[a]}`, and the image in `interface/` is laid out for that
+mapping.
 
-**Build order matters**: if you modify the counter, run its own flow first (`make build-counter` from here, or equivalently `make -C macros/counter all`) so its `final/` views are up to date, then build this top level. The top-level `make all` does this automatically by running `build-macros` before `build-top`.
+An access is a one-cycle REN or WEN pulse with the address on `uio_out[8:0]`,
+followed by the 64-bit word as four 16-bit beats in the order `phys[a][15:0]`,
+`phys[a][31:16]`, `phys[a+512][15:0]`, `phys[a+512][31:16]`.
 
-You can also remove all sub-macros and implement your design as sea-of-gates only: delete `macros/`, remove the `MACROS` section from `flow/librelane/config.yaml`, and put your RTL into `rtl/`.
+* Read: the controller puts the four beats on `ui_in` in the four cycles after the
+  REN cycle.
+* Write: the macro drives the four beats on `uo_out` in the WEN cycle and the three
+  cycles after it.
+* Two accesses start at least five cycles apart.
 
-
-## Makefile Targets
-
-### Show Available Targets
-
-The default Make target is `help`, so running `make` prints usage and all available targets with short descriptions.
-
-```sh
-make
-make help
-```
-
-
-### Linting
-
-To lint the Verilog/SystemVerilog source files with [Verilator](https://www.veripool.org/verilator/), run:
-
-```sh
-make lint-verilog                # lint the full heichips26_digital_project design (top + counter RTL)
-make lint-verilog CELL=heichips26_digital_project   # equivalent: CELL defaults to heichips26_digital_project
-make lint-verilog-all            # lint the counter sub-macro, then heichips26_digital_project
-```
-
-When `CELL=heichips26_digital_project` (the default), all synthesis sources (top level and the counter RTL) are passed to Verilator.
-For another cell, the RTL source is auto-selected as `rtl/<CELL>.sv` when present, otherwise `rtl/<CELL>.v`.
-
-The `lint-verilog-all` target runs these lint checks in sequence:
-
-1. `make -C macros/counter lint-verilog-all`
-2. `make lint-verilog` (default: `heichips26_digital_project`)
-
-This is also the lint step used by `make all`.
+The macro cannot run without this controller. [`testbenches/verilog/efpga_mem_ctrl.v`](testbenches/verilog/efpga_mem_ctrl.v)
+implements it for the pins of the IHP SRAM, [`rtl/fpga_emu/mem_ctrl.v`](rtl/fpga_emu/mem_ctrl.v)
+is the same logic for the FPGA board. On the chip it has to be part of the eFPGA
+bitstream (Yosys `synth -lut 4` estimate: 76 LUT4 and 16 flip-flops), together with
+a way to write the image into the SRAM.
 
 
-### Verification and Simulation
+## Memory image
 
-We use [cocotb](https://www.cocotb.org/), a Python-based testbench environment, and [Icarus Verilog](https://github.com/steveicarus/iverilog) for the verification of the macro.
+[`interface/bank_cfg.pat`](interface/bank_cfg.pat) is the SRAM content for sample 0
+of the chb01 EEG set: 1024 lines, one 32-bit hex word per physical address, readable
+with `$readmemh`. [`rtl/fpga_emu/bank_cfg.coe`](rtl/fpga_emu/bank_cfg.coe) holds the
+same words for the Vivado block RAM.
 
-The simulation targets are unified and accept an optional `CELL` variable (default: `heichips26_digital_project`).
-The waveform viewer can be changed with `WAVEFORM_VIEWER=<gtkwave|surfer>` (default: `gtkwave`).
+Fixed regions, in logical addresses:
 
-> [!NOTE]
-> [Surfer](https://surfer-project.org/) is currently **not** available in the nix shell — use the default GTKWave there. Surfer is provided by the IIC-OSIC-TOOLS container.
+| Logical words | Content |
+|---|---|
+| 0 to 159 | feature map, 4 time steps × 40 words; every layer writes its output back here |
+| 278 to 287, high half | layer table, two words per layer (physical 790 to 799) |
+| 490 to 493 | spike scratch per time step |
+| 496 to 503 | depthwise membrane potentials |
+| 504 to 511 | pointwise membrane potentials |
 
-> [!NOTE]
-> In the current repository state, the provided Verilog and cocotb testbench/viewer files are for `heichips26_digital_project`.
-> Running simulation/view targets with another `CELL` requires corresponding testbench files (for example, `testbenches/verilog/<CELL>_tb.*` and `testbenches/cocotb/<CELL>_tb.py`).
+A spike is a 2-bit code for the amplitudes 0, 1, 2 and 4. Bit 0 of every channel's
+code sits in the low half of a feature map word, bit 1 in the high half. The input
+layer packs two positions of 16 channels into one word, all later layers one
+position of up to 32 channels.
 
-#### RTL Verilog Simulation
+The layer table as it is in the image, logical addresses:
 
-Compiles the RTL (top level + counter) with Icarus Verilog and runs the simulation.
-When `CELL=heichips26_digital_project` (the default), the full `MODULES_SIM` source list and the `.sv` testbench are selected automatically.
-For other cells, the RTL source is auto-selected as `rtl/<CELL>.sv` when present, otherwise `rtl/<CELL>.v`, and the testbench likewise as `testbenches/verilog/<CELL>_tb.sv` when present, otherwise `testbenches/verilog/<CELL>_tb.v`.
-The waveform is written to `testbenches/verilog/` (e.g. `testbenches/verilog/heichips26_digital_project_tb.fst`):
+| L | Layer | `weight` | `pw_scale` | `scale` | `pw_weight` | `length` | `in_ch` | `out_ch` |
+|---|---|---|---|---|---|---|---|---|
+| 0 | ds1 | 160 | 168 | 234 | 234 | 80 | 16 | 32 |
+| 1 | ds2 | 180 | 196 | 238 | 298 | 40 | 32 | 32 |
+| 2 | ds3 | 208 | 224 | 246 | 426 | 20 | 32 | 16 |
+| 3 | fc1 | 180 | 230 | 236 | 254 | 40 | 16 | 8 |
+| 4 | fc2 | 180 | 494 | 236 | 270 | 40 | 8 | 8 |
+
+Layer L's 64-bit entry has its low 32 bits in the high half of logical word
+`278 + 2L` and its high 32 bits in the high half of `279 + 2L`:
+
+| Bits | Field | Meaning |
+|---|---|---|
+| [8:0] | `weight` | depthwise weights and biases, alternating per group of 4 channels: weights of channels 0 to 3, their biases, weights of 4 to 7, ... |
+| [17:9] | `pw_scale` | three words per group of 8 output channels: scales, biases of outputs 0 to 3, biases of outputs 4 to 7 |
+| [26:18] | `scale` | depthwise scales, high half, 4 channels per word |
+| [35:27] | `pw_weight` | pointwise weights, low half, one word per group of 8 outputs and input channel; for fc1 and fc2 one word per input channel in the high half |
+| [43:36] | `length` | input length per time step (`max_lenth` in the RTL) |
+| [49:44] | `in_ch` | input channels |
+| [55:50] | `out_ch` | output channels |
+
+Weights are signed 4-bit, biases signed 16-bit. A scale byte shifts right when bit 7
+is 1 and left when it is 0, by the amount in bits 2:0 (`0x83` is a right shift by 3).
+
+
+## Running an inference
+
+1. Write the image into the SRAM.
+2. Pulse `rst_n` low.
+3. Set `uio_in[1]`: 1 for inference only, 0 to let SDSP learning update the fc2 weights.
+4. Pulse `uio_in[0]` high for one cycle.
+5. Wait for the `gbl_finish` pulse on `uio_out[12]` and latch `uio_out[13]` in that
+   cycle. An inference takes 651,328 cycles after the start pulse with learning off
+   and 651,552 with learning on, whatever the data.
+6. For the next sample write the next image and go back to step 2. The only weights
+   learning changes are physical words 782 to 789 (fc2, high half of logical 270 to
+   277); keep them to carry the learned weights over.
+
+Step 2 is needed before every inference, see known issue 1.
+
+
+## Known issues
+
+1. **`rst_n` has to be pulsed before every `gbl_start`.** After an inference,
+   `SPARSE_CORE.read_en_seq` still holds fc2's last write-back bits. At the next
+   `gbl_start` the layer table read turns them into a spurious `wb_mp_finish`, the
+   inference ends 142 cycles early, and a few spikes come out wrong in every layer.
+   With sample 100 of chb01 run after sample 0, 11 of 5120 spikes differ from the
+   golden model in ds1, 8 of 2560 in ds2, 1 of 640 in ds3 and 1 of 32 in fc1; the
+   class was still right. With a reset in between, both inferences match the model.
+   Running the same image twice does not show the problem. Forcing only
+   `read_en_seq` to 0 before the second inference makes its SRAM access trace
+   identical to a fresh run, so clearing that register at the start of an inference
+   should fix it in the RTL.
+2. **The SDSP rule treats the signed 4-bit weights as unsigned.** It saturates at 15
+   and 0 instead of +7 and -8, and it compares the membrane potential without sign.
+   A weight at +7 that is potentiated wraps to -8. In a sweep of 80 input
+   combinations through the learning rule, 20 differ from signed saturating
+   arithmetic. Running sample 0 three times with learning on gives 24 weight steps,
+   5 of them from +7 to -8, and the third run classifies sample 0 as class 1. The
+   gate-level netlist makes the same SRAM accesses, wraps included, in the first two
+   runs. Inference with `uio_in[1] = 1` is not affected.
+3. **Slow corner timing.** Setup closes at the 10 ns constraint in the typical and
+   fast corners. In the slow corner (1.08 V, 125 °C) it needs 12.21 ns, 82 MHz.
+   The HeiChips chip top is constrained to 15 ns.
+4. **Word 232, fixed in the image.** fc1's scale and bias block (230 to 232) and
+   fc2's (232 to 234) both used logical word 232, so fc1's output channel 4 got a bias
+   of -31869 and never fired. fc2's block now sits at 494, a change of three physical
+   words (232, 494, and the layer table word 798) with no RTL change. Over the 200
+   chb01 samples in the bit-accurate model this raises the accuracy from 89.0 % to
+   91.0 %; the floating-point model reaches 92.5 %.
+
+
+## Simulation
+
+The testbench in [`testbenches/verilog/`](testbenches/verilog/) drives the macro
+at its pins through `efpga_mem_ctrl.v` and the IHP SRAM model from the PDK. It loads
+the image, runs one inference and checks the SRAM after every layer word for word
+against `expected/`, the class, the cycle count, the SRAM protocol, and X on the
+request pins, the address and the write data. The reference snapshots come from an
+RTL run whose every layer matched the bit-accurate golden model.
+
+Run it inside the repository's Nix shell, with the PDK cloned by `make clone-pdk` in
+the repository root (or `PDK_ROOT` set):
 
 ```sh
-make sim-rtl-verilog              # run heichips26_digital_project RTL simulation
+make sim-rtl-verilog                          # RTL, about 1 min
+make sim-gl-verilog                           # final/nl, flip-flops starting at 0 and at 1, about 9 min
+make sim-all                                  # both
+make sim-rtl-verilog TB_ARGS=+WAVES           # also dump a waveform
+make sim-view-verilog                         # open it
+make sim-rtl-verilog TB_ARGS="+NINFER=2 +RESET_BETWEEN"
 ```
 
-To view the waveform afterwards:
+The plusargs are listed at the top of `heichips26_e2spike_tb.v`. `TB_CHECKS` holds the
+comparison against `expected/`; set `TB_CHECKS=` when simulating another image with
+`+MEMFILE=`.
+
+650 of the netlist's 753 flip-flops have their reset input tied inactive, and the IHP
+cell models start them as X. `gl_udp_init.py` writes a copy of the cell primitives
+with a defined start value, and `sim-gl-verilog` runs the netlist once from all 0 and
+once from all 1.
+
+`rtl/tb/` holds the team's module-level testbenches from development.
+
+
+## Directory structure
+
+| Path | Content |
+|---|---|
+| `final/` | committed views: gds, lef, lib, nl, pnl, spef, vh, render |
+| `flow/librelane/` | LibreLane configuration, SDC files, HeiChips DEF templates |
+| `interface/` | `bank_cfg.pat`, the SRAM image |
+| `rtl/` | accelerator RTL; `rtl/*.v` is what LibreLane synthesizes |
+| `rtl/fpga_emu/` | Basys 3 top, memory controller for a block RAM, `bank_cfg.coe` |
+| `rtl/tb/` | module-level testbenches |
+| `testbenches/verilog/` | pin-level testbench, eFPGA memory controller, reference snapshots |
+| `verification/` | signoff reports of the committed views |
+| `fpga/` | from the HeiChips template, still builds the template design |
+| `macros/counter/` | from the HeiChips template, not used by E2Spike |
+
+
+## FPGA emulation
+
+`rtl/fpga_emu/basys3_top.sv` runs the macro RTL on a Basys 3 with `mem_ctrl.v` in
+front of a block RAM (the Vivado project is not in the repository). SW0 is reset
+(0 holds the design in reset), a rising edge on SW1 starts an inference, SW2 = 1
+disables learning. LED0 shows `gbl_finish`, LED1 `class_label`.
+
+The `fpga/` flow and `macros/counter/` come from the HeiChips template: `fpga/dut.mk`
+still lists `heichips26_digital_project.sv` and the counter, so `make build-fpga`
+and `make all` do not build E2Spike.
+
+
+## Rebuilding the layout
 
 ```sh
-make sim-view-verilog                                  # view heichips26_digital_project waveform
-make sim-view-verilog WAVEFORM_VIEWER=surfer           # use Surfer instead
+make librelane     # LibreLane with Magic and KLayout DRC
+make copy-final    # flow/final -> final/
 ```
 
-The simulation folder contains a pre-configured waveform layout file (`heichips26_digital_project_tb.gtkw` for GTKWave, `heichips26_digital_project_tb.surf.ron` for Surfer).
-The view target loads it automatically together with the current `.fst`, so signal formatting is preserved across runs.
-
-#### RTL / GL cocotb Simulation
-
-The cocotb testbench is located in `testbenches/cocotb/heichips26_digital_project_tb.py` and exercises the embedded counter through the chip interface (`ui_in[0]` is the counter enable, `uo_out` is the counter value):
-
-- reset clears the counter to 0
-- the counter holds its value while `ui_in[0]` is low
-- the counter increments by 1 on every rising clock edge while `ui_in[0]` is high
-- the counter wraps from `CTR_MAX` back to 0
-
-```sh
-make sim-rtl-cocotb               # run heichips26_digital_project RTL cocotb simulation
-```
-
-To run the gate-level (GL) cocotb simulation (sources the post-synthesis netlists from `final/nl/` and `macros/counter/final/nl/`):
-
-```sh
-make sim-gl-cocotb                # gate-level simulation of heichips26_digital_project
-```
-
-> [!NOTE]
-> Gate-level simulation requires the latest implementation in `flow/final/` (and a `final/nl/heichips26_digital_project.nl.v` copy via `make copy-final`).
-
-A waveform file is generated under `testbenches/cocotb/sim_build/heichips26_digital_project.fst`.
-To view it:
-
-```sh
-make sim-view-cocotb                                  # view heichips26_digital_project waveform
-make sim-view-cocotb WAVEFORM_VIEWER=surfer           # use Surfer instead
-```
-
-The cocotb folder contains a pre-configured waveform layout file (`heichips26_digital_project_tb.gtkw` for GTKWave, `heichips26_digital_project_tb.surf.ron` for Surfer).
-The view target loads it automatically together with the current `.fst`, so signal formatting is preserved across runs.
-
-#### Run All Simulations
-
-To run all simulation targets in sequence:
-
-```sh
-make sim-all
-```
-
-This executes the following targets in order:
-
-1. `sim-rtl-verilog` (default: `heichips26_digital_project`)
-2. `sim-rtl-cocotb` (default: `heichips26_digital_project`)
-3. `sim-gl-cocotb` (default: `heichips26_digital_project`)
-
-> [!NOTE]
-> The `sim-view-verilog` and `sim-view-cocotb` targets are **not** called by `sim-all`: both open a waveform viewer GUI (GTKWave or Surfer), which blocks the shell until the window is closed. They are designed for interactive use.
-
-> [!TIP]
-> This top level is verified with Icarus Verilog and cocotb only. The mixed-signal gate-level flow in Xschem (XSPICE model + ngspice) lives in the [`counter`](macros/counter/README.md#gate-level-xschem-simulation) sub-macro, which is the reference for analog mixed-signal simulation in this template.
-
-
-### LibreLane Flow
-
-Run the LibreLane flow with:
-
-```sh
-make librelane
-```
-
-Additional targets are available for different DRC configurations:
-
-- `make librelane-nodrc` – run LibreLane without DRC checks
-- `make librelane-magicdrc` – run LibreLane with only Magic DRC checks
-- `make librelane-klayoutdrc` – run LibreLane with only KLayout DRC checks
-
-After the LibreLane flow completes successfully, the generated views are saved under `flow/final/`. `flow/final/` is included in `.gitignore`.
-
-The floorplan is fixed by a HeiChips DEF template (`FP_DEF_TEMPLATE` in `flow/librelane/config.yaml`). Select the slot size by switching between the tiny/small/large template blocks in the config — see the top-level repository README for the available slot sizes.
-
-
-### View the Design
-
-After completion, you can view the design using the OpenROAD GUI:
-
-```sh
-make librelane-openroad
-```
-
-Or using KLayout:
-
-```sh
-make librelane-klayout
-```
-
-
-### Copy Important Reports
-
-To copy the yosys synthesis checks, antenna reports, post-PnR timing summary, per-corner power reports, IR-drop report, Magic/KLayout DRC results, LVS report, and manufacturability report from the latest run into `verification/`, run:
-
-```sh
-make copy-reports
-```
-
-This only works if at least one LibreLane run exists in `flow/librelane/runs/` and the latest run completed without errors.
-
-
-### Copy the Final Folders
-
-To copy the latest GDS, LEF, LIB, NL, PNL, SPEF, VH, and render from `flow/final/` into `final/`, run:
-
-```sh
-make copy-final
-```
-
-This assumes the final folders exist under `flow/final/` after a successful LibreLane run. The `final/` views of this top-level macro are the ones referenced by `submission.yaml` for the HeiChips precheck.
-
-The layout render in `final/render/` is produced by LibreLane itself and is simply copied along with the other views, so there is no separate render target.
-
-
-### Copy the Final Netlist
-
-To copy the latest SPICE, PnL, and Netlist files from `flow/final/` into `netlist/`, run:
-
-```sh
-make copy-netlist
-```
-
-This only works if the required final views exist in `flow/final/spice/`, `flow/final/pnl/`, and `flow/final/nl/`.
-
-
-### Build FPGA
-
-There are two default FPGA emulation flows, sharing the same recipe logic from `fpga/fpga.mk`:
-
-- **Top-level (whole chip)** — `fpga/`, targets a [ULX3S](https://radiona.org/ulx3s/) board (ECP5, Yosys → nextpnr-ecp5 → ecppack), flashed with `openFPGALoader`.
-- **Macro-level (`counter` standalone)** — `macros/counter/fpga/`, also targets a ULX3S by default, wired directly to `counter`'s native ports (no chip-level wrapper).
-
-Both flows can also target other boards, each with its own thin Makefile reusing `fpga/fpga.mk` — see `fpga/README.md` for the full board matrix (iCEBreaker, Tang Nano 9K, pico-ice, and, via the separate `nix-openxc7` Xilinx toolchain vendored at the repo root, Basys 3/Boolean).
-
-To run the full top-level flow (synthesis → place-and-route → bitstream), run:
-
-```sh
-make build-fpga
-```
-
-This invokes `make -C fpga all`. Individual steps can also be run from `fpga/` (or `macros/counter/fpga/` for the macro-level flow, or e.g. `fpga/design/icebreaker/` for another board):
-
-```sh
-make -C fpga synthesis
-make -C fpga pr              # nextpnr place-and-route
-make -C fpga gen_bitstream   # ecppack → .bit
-make -C fpga load_bitstream  # load into SRAM via openFPGALoader
-make -C fpga flash_bitstream # optional: write to flash instead, to survive a power cycle
-```
-
-The counter macro can be built and flashed the same way from `macros/counter/`:
-
-```sh
-make -C macros/counter build-fpga
-```
-
-> [!NOTE]
-> Loading and flashing differ per board/toolchain — each Makefile sets `LOAD_CMD`/`FLASH_CMD` accordingly. The default ULX3S flow and most other boards use `openFPGALoader`; pico-ice uses `dfu-util` instead, since its RP2040 co-processor acts as a USB DFU bootloader that `openFPGALoader`/`iceprog` don't speak to directly.
-
-See `fpga/README.md` for the full shared-flow reference (variables, targets, adding a new board or macro).
-
-
-### Build Macros
-
-To lint, build, verify and simulate the sub-macros, run:
-
-```sh
-make build-counter               # run the counter sub-macro's full flow (make -C macros/counter all)
-make build-macros                # run the full flow of all sub-macros (currently: counter)
-```
-
-`build-macros` is the target to extend when you add further sub-macros: give each one its own `build-<macro>` target and call it from `build-macros`, mirroring `clean-macros`.
-
-
-### Build Top
-
-To build the macro with LibreLane, copy its reports, copy final folders, and copy netlists, run:
-
-```sh
-make build-top
-```
-
-> [!NOTE]
-> If you modified the counter sub-macro, run `make build-counter` first so the `MACROS` views referenced by the top-level config are up to date. `make all` takes care of this ordering for you.
-
-
-### Design Rule Check (DRC) & Layout Versus Schematic (LVS)
-
-The LibreLane flow already includes DRC and LVS checks with Magic and KLayout, and they are saved in the `verification/` folder.
-
-
-### Lint, Build, Verify and Simulate All
-
-Lints, builds, verifies and simulates the sub-macros and the whole top level:
-
-- `lint-verilog-all`
-- `build-macros`
-- `build-fpga`
-- `build-top`
-- `sim-all`
-
-Linting runs first to fail fast on structural RTL issues. `build-macros` then hardens the sub-macros, so `build-top` instantiates the `final/` views produced by this run — the build order from [Sub-Macros](#sub-macros) is handled automatically. The simulations run **after** the build, so the gate-level simulation (`sim-gl-cocotb`) runs on the netlists produced by this build, not on those of a previous one. The DRC and LVS verification is done within the LibreLane flow.
-
-```sh
-make all
-```
-
-
-### Clean
-
-`make clean` deletes all generated files and folders of the top level. The sources (RTL, testbenches, and the LibreLane configuration) stay untouched. Deleted are:
-
-- `flow/librelane/runs/` and `flow/final/` (LibreLane runs and output views)
-- `final/` (GDS, LEF, LIB, netlist, SPEF, Verilog header, and render deliverables)
-- `netlist/` (the extracted netlists)
-- `verification/` (the copied LibreLane reports)
-- `testbenches/cocotb/sim_build/` and the Verilog testbench waveforms (`*.fst`)
-- the FPGA build outputs (via `make -C fpga clean`)
-
-`make clean-counter` runs `make clean` in the counter macro, `clean-macros` cleans all sub-macros, and `clean-all` combines both (`clean-macros` + `clean`), mirroring the analog project's targets.
-
-Every Makefile target recreates its output folders, so a clean rebuild is simply:
-
-```sh
-make clean-all
-make all
-```
-
-`make all` starts with `build-macros`, so the counter's `final/` views deleted by `clean-all` are rebuilt before the top level needs them.
+A new layout needs the precheck (`make precheck` in the repository root),
+`make sim-gl-verilog` and new reports in `verification/`. `make copy-reports`
+replaces `verification/` with the reports of the last LibreLane run. `make clean`
+deletes `final/`, `netlist/` and `verification/` as well as the run directories.
