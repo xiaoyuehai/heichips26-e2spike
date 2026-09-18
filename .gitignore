@@ -49,3 +49,6 @@ IHP-Open-PDK/
 
 # KLayout
 klayoutrc.*
+
+# Reference SRAM snapshots of the E2Spike pin-level testbench (*.hex is ignored above)
+!/macros/heichips26_e2spike/testbenches/verilog/expected/*.hex

@@ -1,0 +1,17 @@
+IHP SG13CMOS5L KLayout LVS runset (libs.tech/klayout/tech/lvs/run_lvs.py), deep mode,
+--disable_tap_extraction, nothing black-boxed.
+Layout:    final/gds/heichips26_e2spike.gds
+Schematic: final/pnl/heichips26_e2spike.pnl.v converted to CDL with the standard cell CDL
+PDK:       db70c13 2026-08-01 + 11d3fee 2026-08-02
+
+Starting SG13CMOS5L LVS Comparison in strict port mode.
+flag_missing_ports enabled: missing/mislabeled top-level ports are treated as errors.
+INFO : Congratulations! Netlists match.
+LVS Total Run time 153.075139 seconds
+| Status           | PASS                                                         |
+| Mode             | COMPARE                                                      |
+| Outcome          | Comparison mode: PASS (netlists match).                      |
+| Top Cell         | heichips26_e2spike                                           |
+| Warnings         | 0                                                            |
+| Errors           | 0                                                            |
+| Run Time (s)     | 160.841                                                      |

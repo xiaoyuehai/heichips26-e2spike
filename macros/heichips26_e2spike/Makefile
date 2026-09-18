@@ -6,7 +6,13 @@ MAKEFILE_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 RUN_TAG = $(shell ls -1 $(LIBRELANE_DIR)/runs 2>/dev/null | tail -n 1)
 
 # Variables
-TOP = heichips26_digital_project
+TOP = heichips26_e2spike
+
+# PDK, as set up by `make clone-pdk` in the repository root
+PDK_ROOT ?= $(MAKEFILE_DIR)/../../IHP-Open-PDK
+PDK ?= ihp-sg13cmos5l
+SRAM_V_DIR  := $(PDK_ROOT)/$(PDK)/libs.ref/sg13cmos5l_sram/verilog
+CELLS_V_DIR := $(PDK_ROOT)/$(PDK)/libs.ref/sg13cmos5l_stdcell/verilog
 
 .DEFAULT_GOAL := help
 
@@ -20,7 +26,6 @@ WAVEFORM_VIEWER ?= gtkwave
 
 # Folder structure
 MACROS_DIR      := macros
-COCOTB_DIR      := testbenches/cocotb
 VERILOG_TB_DIR 	:= testbenches/verilog
 REPORT_DIR     	:= verification
 SRC_DIR 		:= rtl
@@ -32,12 +37,25 @@ FLOW_FINAL_DIR 	:= flow/final
 FINAL_DIR      	:= final
 
 # Variables for simulation and linting targets
-# The counter sub-macro is hardened separately (see macros/counter/), but its RTL
-# is needed for linting and RTL simulation of the whole design.
+# rtl/*.v is what the LibreLane config synthesizes (rtl/tb and rtl/fpga_emu are
+# not included).
 MODULES_SYNTH := $(wildcard $(SRC_DIR)/*.v)
 
 MODULES_SIM := \
 	$(MODULES_SYNTH)
+
+# Testbench around the macro: the eFPGA memory controller and the IHP SRAM model
+TB_SIM_BUILD := $(VERILOG_TB_DIR)/sim_build
+TB_SRCS := \
+	$(VERILOG_TB_DIR)/$(TOP)_tb.v \
+	$(VERILOG_TB_DIR)/efpga_mem_ctrl.v \
+	$(SRAM_V_DIR)/RM_IHPSG13_1P_1024x32_c2_bm_bist.v \
+	$(SRAM_V_DIR)/RM_IHPSG13_1P_core_behavioral_bm_bist.v
+# Checks of the default run: sample 0 image against the reference snapshots.
+# Set TB_CHECKS= to simulate a different image with TB_ARGS=+MEMFILE=<pat>.
+TB_CHECKS ?= +EXPECT_DIR=expected +EXPECT_CLASS=0 +EXPECT_CYCLES=651328
+# Further plusargs, e.g. TB_ARGS=+WAVES or TB_ARGS="+NINFER=2 +RESET_BETWEEN"
+TB_ARGS ?=
 
 # Source files for sim-rtl-verilog: auto-selects MODULES_SIM when CELL == TOP, single-file otherwise (prefers .sv, falls back to .v)
 _SIM_SRCS = $(if $(filter $(CELL),$(TOP)),$(MODULES_SIM),$(or $(wildcard $(SRC_DIR)/$(CELL).sv),$(SRC_DIR)/$(CELL).v))
@@ -64,10 +82,10 @@ help: ## Show this help message
 
 # Linter Targets
 lint-verilog: ## Lint Verilog source files with Verilator (usage: make lint-verilog [CELL=<cellname>])
-	verilator --lint-only -Wno-fatal -I"$(SRC_DIR)" $(_LINT_SRCS)
+	verilator --lint-only -Wno-fatal -I"$(SRC_DIR)" --top-module $(CELL) $(_LINT_SRCS)
 .PHONY: lint-verilog
 
-lint-verilog-all: ## Lint all Verilog source files (counter sub-macro + heichips26_digital_project)
+lint-verilog-all: ## Lint all Verilog source files (counter sub-macro + heichips26_e2spike)
 	$(MAKE) -C $(MACROS_DIR)/counter lint-verilog-all
 	$(MAKE) lint-verilog
 .PHONY: lint-verilog-all
@@ -75,44 +93,42 @@ lint-verilog-all: ## Lint all Verilog source files (counter sub-macro + heichips
 
 
 # Simulation Targets
-sim-rtl-verilog: ## Run RTL simulation of CELL cell with Icarus Verilog (usage: make sim-rtl-verilog [CELL=<cellname>])
-	iverilog -g2012 -DSIM -o $(VERILOG_TB_DIR)/test_$(CELL) $(_SIM_SRCS) $(VERILOG_TB_DIR)/$(CELL)_tb.$(_TB_EXT)
-	cd $(VERILOG_TB_DIR) && vvp test_$(CELL) -fst
-	rm -f $(VERILOG_TB_DIR)/test_$(CELL)
+# Both runs load interface/bank_cfg.pat, run one inference and compare the SRAM
+# after every layer with testbenches/verilog/expected/. The plusargs are listed
+# at the top of testbenches/verilog/heichips26_e2spike_tb.v.
+sim-rtl-verilog: ## Run the self-checking RTL simulation of heichips26_e2spike with Icarus Verilog (about 1 min)
+	@test -f $(SRAM_V_DIR)/RM_IHPSG13_1P_1024x32_c2_bm_bist.v || { \
+		echo "IHP SRAM model not found under $(SRAM_V_DIR), run make clone-pdk in the repository root or set PDK_ROOT"; exit 1; }
+	mkdir -p $(TB_SIM_BUILD)
+	iverilog -g2012 -DFUNCTIONAL -s $(TOP)_tb -o $(TB_SIM_BUILD)/$(TOP)_tb_rtl.vvp $(TB_SRCS) $(MODULES_SIM)
+	cd $(VERILOG_TB_DIR) && vvp -n sim_build/$(TOP)_tb_rtl.vvp -fst $(TB_CHECKS) $(TB_ARGS) | tee sim_build/rtl.log
+	@grep -q "^TB PASS" $(TB_SIM_BUILD)/rtl.log
 .PHONY: sim-rtl-verilog
 
-sim-view-verilog: ## View CELL cell Verilog simulation waveforms (usage: make sim-view-verilog [CELL=<cellname>] [WAVEFORM_VIEWER=<gtkwave|surfer>])
-	@if [ "$(WAVEFORM_VIEWER)" = "gtkwave" ]; then \
-		$(WAVEFORM_VIEWER) $(VERILOG_TB_DIR)/$(CELL)_tb.fst $(VERILOG_TB_DIR)/$(CELL)_tb.gtkw; \
-	elif [ "$(WAVEFORM_VIEWER)" = "surfer" ]; then \
-		$(WAVEFORM_VIEWER) -s $(VERILOG_TB_DIR)/$(CELL)_tb.surf.ron $(VERILOG_TB_DIR)/$(CELL)_tb.fst; \
-	else \
-		$(WAVEFORM_VIEWER) $(VERILOG_TB_DIR)/$(CELL)_tb.fst; \
-	fi
+# The committed netlist is simulated twice, with every flip-flop starting at 0
+# and at 1 (see testbenches/verilog/gl_udp_init.py). Both must pass.
+sim-gl-verilog: ## Run the self-checking gate-level simulation of final/nl with both power-up states (about 9 min)
+	@test -f $(CELLS_V_DIR)/sg13cmos5l_stdcell.v || { \
+		echo "IHP standard cell models not found under $(CELLS_V_DIR), run make clone-pdk in the repository root or set PDK_ROOT"; exit 1; }
+	mkdir -p $(TB_SIM_BUILD)
+	@set -e; for init in 0 1; do \
+		python3 $(VERILOG_TB_DIR)/gl_udp_init.py $(CELLS_V_DIR)/sg13cmos5l_udp.v $(TB_SIM_BUILD)/udp_init$$init.v $$init; \
+		iverilog -g2012 -gno-specify -DFUNCTIONAL -DGL -s $(TOP)_tb -o $(TB_SIM_BUILD)/$(TOP)_tb_gl$$init.vvp \
+			$(TB_SRCS) $(TB_SIM_BUILD)/udp_init$$init.v $(CELLS_V_DIR)/sg13cmos5l_stdcell.v $(FINAL_DIR)/nl/$(TOP).nl.v \
+			2>&1 | grep -v "sorry: ifnone\|timescale" || true; \
+		echo "gate level, flip-flops starting at $$init"; \
+		(cd $(VERILOG_TB_DIR) && vvp -n sim_build/$(TOP)_tb_gl$$init.vvp -fst $(TB_CHECKS) $(TB_ARGS) | tee sim_build/gl$$init.log); \
+		grep -q "^TB PASS" $(TB_SIM_BUILD)/gl$$init.log; \
+	done
+.PHONY: sim-gl-verilog
+
+sim-view-verilog: ## View the waveform of the last run with TB_ARGS=+WAVES (usage: make sim-view-verilog [WAVEFORM_VIEWER=<gtkwave|surfer>])
+	$(WAVEFORM_VIEWER) $(TB_SIM_BUILD)/$(TOP)_tb.fst
 .PHONY: sim-view-verilog
 
-sim-rtl-cocotb: ## Run RTL simulation of CELL cell with cocotb (usage: make sim-rtl-cocotb [CELL=<cellname>])
-	cd $(COCOTB_DIR) && python3 $(CELL)_tb.py
-.PHONY: sim-rtl-cocotb
-
-sim-gl-cocotb: ## Run gate-level simulation of CELL cell with cocotb (usage: make sim-gl-cocotb [CELL=<cellname>])
-	cd $(COCOTB_DIR) && GL=1 python3 $(CELL)_tb.py
-.PHONY: sim-gl-cocotb
-
-sim-view-cocotb: ## View CELL cell cocotb simulation waveforms (usage: make sim-view-cocotb [CELL=<cellname>] [WAVEFORM_VIEWER=<gtkwave|surfer>])
-	@if [ "$(WAVEFORM_VIEWER)" = "gtkwave" ]; then \
-		$(WAVEFORM_VIEWER) $(COCOTB_DIR)/sim_build/$(CELL).fst $(COCOTB_DIR)/$(CELL)_tb.gtkw; \
-	elif [ "$(WAVEFORM_VIEWER)" = "surfer" ]; then \
-		$(WAVEFORM_VIEWER) -s $(COCOTB_DIR)/$(CELL)_tb.surf.ron $(COCOTB_DIR)/sim_build/$(CELL).fst; \
-	else \
-		$(WAVEFORM_VIEWER) $(COCOTB_DIR)/sim_build/$(CELL).fst; \
-	fi
-.PHONY: sim-view-cocotb
-
-sim-all: ## Simulate the macro (RTL Verilog + RTL/GL cocotb for heichips26_digital_project)
+sim-all: ## Simulate the macro: RTL, then the committed gate-level netlist
 	$(MAKE) sim-rtl-verilog
-	$(MAKE) sim-rtl-cocotb
-	$(MAKE) sim-gl-cocotb
+	$(MAKE) sim-gl-verilog
 .PHONY: sim-all
 # ================================================================================================
 
@@ -248,7 +264,7 @@ clean: ## Delete all generated files and folders of the TOP cell (LibreLane outp
 	rm -rf $(LIBRELANE_DIR)/runs $(FLOW_FINAL_DIR)
 	rm -rf final netlist
 	rm -rf $(REPORT_DIR)
-	rm -rf $(COCOTB_DIR)/sim_build $(VERILOG_TB_DIR)/*.fst
+	rm -rf $(TB_SIM_BUILD)
 	@$(MAKE) -C fpga clean
 .PHONY: clean
 
